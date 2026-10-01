@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -7,6 +7,7 @@ import { Button } from '@/ui/Button';
 import { Field, controlClass } from '@/ui/Field';
 import { Icon } from '@/ui/Icon';
 import { Container } from '@/ui/Container';
+import { PhotoSource } from '@/ui/PhotoSource';
 import { useAuth } from '@/app/AuthProvider';
 import { useNetwork } from '@/app/NetworkProvider';
 import { db } from '@/offline/db';
@@ -38,8 +39,6 @@ export function RegisterEquipmentPage() {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const { state } = useNetwork();
-  const cameraInput = useRef<HTMLInputElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   const { data: labs = [] } = useQuery({
     queryKey: ['my-labs', profile?.lab_ids],
@@ -247,7 +246,7 @@ export function RegisterEquipmentPage() {
 
         <Field label="Name" required value={name} onChange={(e) => setName(e.target.value)} help="What people call it, e.g. UV-Vis Spectrophotometer" />
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 [&>*]:min-w-0 gap-5 sm:grid-cols-2">
           <Field label="Manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
           <Field label="Model" mono value={model} onChange={(e) => setModel(e.target.value)} />
           <Field label="Serial number" mono value={serial} onChange={(e) => setSerial(e.target.value)} />
@@ -281,32 +280,10 @@ export function RegisterEquipmentPage() {
           {photoPreview ? (
             <img src={photoPreview} alt="" className="mb-3 block aspect-[4/3] max-h-[260px] w-full rounded-lg object-cover" />
           ) : null}
-          <div className="flex gap-3">
-            <Button intent="secondary" icon="photo_camera" block onClick={() => cameraInput.current?.click()}>
-              {photo ? 'Retake' : 'Take photo'}
-            </Button>
-            <Button intent="secondary" icon="photo_library" block onClick={() => fileInput.current?.click()}>
-              Gallery
-            </Button>
-          </div>
-          <input
-            ref={cameraInput}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden
-            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-          />
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden
-            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          <PhotoSource
+            onFiles={([file]) => setPhoto(file ?? null)}
+            takeLabel={photo ? 'Retake' : 'Take photo'}
+            takeIntent="secondary"
           />
           <span className="mt-2 block text-[13px] leading-[19px] text-ink-muted">
             Optional. You can also add or change it later from the machine&rsquo;s passport.

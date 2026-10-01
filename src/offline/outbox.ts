@@ -26,9 +26,6 @@ export async function pending(): Promise<OutboxItem[]> {
   return db.outbox.orderBy('created_at').toArray();
 }
 
-export async function pendingCount(): Promise<number> {
-  return db.outbox.count();
-}
 
 export async function markSent(id: string): Promise<void> {
   await db.transaction('rw', db.outbox, db.events, async () => {

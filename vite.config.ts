@@ -83,7 +83,7 @@ export default defineConfig(({ mode }) => {
             supabase: ['@supabase/supabase-js'],
             query: ['@tanstack/react-query', '@tanstack/react-query-persist-client'],
             charts: ['recharts'],
-            forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+            forms: ['zod'],
           },
         },
       },

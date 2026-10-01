@@ -61,9 +61,16 @@ export function EquipmentRow({
           {location ? <span>{location}</span> : null}
           {nextServiceDue ? <span>Due {formatDate(nextServiceDue)}</span> : null}
         </span>
+        {/* On a phone the badge goes under the name, so a long one like
+            "Replacement recommended" cannot squeeze the name to nothing. */}
+        <span className="mt-2 block sm:hidden">
+          <StatusBadge status={status} />
+        </span>
       </span>
 
-      <StatusBadge status={status} />
+      <span className="hidden shrink-0 sm:block">
+        <StatusBadge status={status} />
+      </span>
     </Link>
   );
 }

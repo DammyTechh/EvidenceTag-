@@ -74,8 +74,6 @@ export const serviceReportSchema = base
     message: 'Next service date is before the service date. Pick a later date.',
   });
 
-export const eventSchema = z.discriminatedUnion('type', [useSchema, faultSchema, inspectionSchema]);
-
 export type EventInput =
   | z.infer<typeof useSchema>
   | z.infer<typeof faultSchema>

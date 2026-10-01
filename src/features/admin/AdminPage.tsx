@@ -92,7 +92,24 @@ export function AdminPage() {
       <p className="mb-0 mt-2 text-[15px] text-ink-muted">Labs and accounts. Equipment records are kept by each lab.</p>
 
       <h2 className="mb-3 mt-8 text-[19px] font-semibold text-ink-strong">Labs</h2>
-      <div className="overflow-x-auto rounded-lg border border-line-subtle bg-surface-raised">
+      <ul className="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
+        {(labs.data ?? []).map((lab) => (
+          <li key={lab.id} className="rounded-lg border border-line-subtle bg-surface-raised p-4">
+            <p className="m-0 flex items-baseline justify-between gap-3">
+              <span className="font-semibold text-ink-strong">{lab.name}</span>
+              <span className="mono text-[13px] text-ink-muted">{lab.code}</span>
+            </p>
+            <p className="mb-0 mt-1 text-[14px] text-ink-muted">
+              {[lab.building, lab.room].filter(Boolean).join(', ') || 'No location set'} · {counts.data?.get(lab.id) ?? 0}{' '}
+              machines
+            </p>
+            <a href={`/l/${lab.public_token}`} className="mt-2 inline-flex min-h-touch items-center gap-1 font-semibold text-brand">
+              Open entrance board <Icon name="open_in_new" size={18} />
+            </a>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-lg border border-line-subtle bg-surface-raised md:block">
         <table className="w-full min-w-[44rem] border-collapse text-left text-[14px]">
           <thead>
             <tr className="border-b border-line-subtle text-ink-muted">
@@ -126,7 +143,35 @@ export function AdminPage() {
         New accounts are added in <span className="mono">supabase/migrations/0006_seed_users.sql</span>. There is no
         sign-up page.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-line-subtle bg-surface-raised">
+      <ul className="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
+        {(people.data ?? []).map((person) => (
+          <li key={person.id} className="rounded-lg border border-line-subtle bg-surface-raised p-4">
+            <p className="m-0 font-semibold text-ink-strong">{person.full_name}</p>
+            <p className="mb-0 mt-1 text-[14px] text-ink-muted">
+              {ROLE_LABEL[person.role] ?? person.role}
+              {person.lab_members.length ? ' · ' : ''}
+              <span className="mono text-[13px]">
+                {person.lab_members.map((m) => labCode.get(m.lab_id)).filter(Boolean).join(', ')}
+              </span>
+            </p>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <PersonState person={person} />
+              {person.id !== profile?.id ? (
+                <Button
+                  intent={person.is_active ? 'secondary' : 'primary'}
+                  disabled={toggle.isPending}
+                  onClick={() => toggle.mutate(person)}
+                >
+                  {person.is_active ? 'Deactivate' : 'Reactivate'}
+                </Button>
+              ) : (
+                <span className="text-[13px] text-ink-muted">You</span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-lg border border-line-subtle bg-surface-raised md:block">
         <table className="w-full min-w-[44rem] border-collapse text-left text-[14px]">
           <thead>
             <tr className="border-b border-line-subtle text-ink-muted">
@@ -146,13 +191,7 @@ export function AdminPage() {
                   {person.lab_members.map((m) => labCode.get(m.lab_id)).filter(Boolean).join(', ') || '—'}
                 </td>
                 <td className="px-4 py-3">
-                  {!person.is_active ? (
-                    <span className="text-urgent-ink">Deactivated</span>
-                  ) : person.must_change_password ? (
-                    <span className="text-attention-ink">Not signed in yet</span>
-                  ) : (
-                    <span className="text-brand">Active</span>
-                  )}
+                  <PersonState person={person} />
                 </td>
                 <td className="px-4 py-3 text-right">
                   {person.id !== profile?.id ? (
@@ -179,4 +218,10 @@ export function AdminPage() {
       ) : null}
     </Container>
   );
+}
+
+function PersonState({ person }: { person: PersonRow }) {
+  if (!person.is_active) return <span className="text-[14px] text-urgent-ink">Deactivated</span>;
+  if (person.must_change_password) return <span className="text-[14px] text-attention-ink">Not signed in yet</span>;
+  return <span className="text-[14px] text-brand">Active</span>;
 }

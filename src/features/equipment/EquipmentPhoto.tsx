@@ -1,5 +1,5 @@
-import { useRef, useState, type ChangeEvent } from 'react';
-import { Button } from '@/ui/Button';
+import { useState } from 'react';
+import { PhotoSource } from '@/ui/PhotoSource';
 import { Icon } from '@/ui/Icon';
 import { equipmentPhotoUrl } from '@/lib/supabase';
 import { useNetwork } from '@/app/NetworkProvider';
@@ -10,9 +10,8 @@ import { usePendingEquipmentPhoto, useSetEquipmentPhoto } from './photo';
  * knows they are at the right machine; a technician in that lab can snap a
  * new one on the spot.
  *
- * "Take photo" opens the rear camera directly on a phone (capture=environment).
- * "Gallery" opens the gallery or file picker, for a picture taken earlier
- * or when working from a desktop.
+ * "Take photo" opens a live viewfinder from the device camera; "Upload"
+ * picks a photo already on the device (see ui/PhotoSource).
  */
 export function EquipmentPhoto({
   equipmentId,
@@ -25,8 +24,6 @@ export function EquipmentPhoto({
   photoPath: string | null;
   canEdit: boolean;
 }) {
-  const cameraInput = useRef<HTMLInputElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
   const { state } = useNetwork();
   const setPhoto = useSetEquipmentPhoto(equipmentId);
@@ -37,13 +34,6 @@ export function EquipmentPhoto({
   const hasImage = Boolean(shownUrl && shownUrl !== brokenUrl);
 
   if (!hasImage && !canEdit) return null;
-
-  function onPicked(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // Clear it so picking the same file again still fires a change.
-    event.target.value = '';
-    if (file) setPhoto.mutate(file);
-  }
 
   let statusLine: { icon: string; text: string; tone: 'muted' | 'attention' | 'urgent' } | null = null;
   if (setPhoto.isPending) {
@@ -93,46 +83,11 @@ export function EquipmentPhoto({
 
       {canEdit ? (
         <figcaption className="mt-3">
-          <div className="flex gap-3">
-            <Button
-              intent={hasImage ? 'secondary' : 'primary'}
-              icon="photo_camera"
-              block
-              disabled={setPhoto.isPending || !equipmentId}
-              onClick={() => cameraInput.current?.click()}
-            >
-              {hasImage ? 'Retake' : 'Take photo'}
-            </Button>
-            <Button
-              intent="secondary"
-              icon="photo_library"
-              block
-              disabled={setPhoto.isPending || !equipmentId}
-              onClick={() => fileInput.current?.click()}
-            >
-              Gallery
-            </Button>
-          </div>
-
-          {/* Driven by the buttons above, which carry the accessible names. */}
-          <input
-            ref={cameraInput}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden
-            onChange={onPicked}
-          />
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden
-            onChange={onPicked}
+          <PhotoSource
+            onFiles={([file]) => file && setPhoto.mutate(file)}
+            disabled={setPhoto.isPending || !equipmentId}
+            takeLabel={hasImage ? 'Retake' : 'Take photo'}
+            takeIntent={hasImage ? 'secondary' : 'primary'}
           />
 
           {statusLine ? (

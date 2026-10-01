@@ -37,6 +37,8 @@ export function PassportPage() {
       </Container>
     );
 
+  if (!isError && !data) return <UnknownCode kind="label" />;
+
   if (isError || !data) {
     return (
       <Container className="py-16 text-center">
@@ -210,6 +212,23 @@ export function PassportPage() {
           </Button>
         )}
       </StickyActions>
+    </Container>
+  );
+}
+
+/** The code was read, but no machine or lab carries it. */
+export function UnknownCode({ kind }: { kind: 'label' | 'lab' }) {
+  return (
+    <Container className="py-16 text-center">
+      <Icon name="qr_code_scanner" size={40} className="text-ink-muted" />
+      <h1 className="mt-4 text-[24px] font-semibold leading-[30px] text-ink-strong">
+        {kind === 'label' ? 'That label does not match any equipment' : 'That code does not match any lab'}
+      </h1>
+      <p className="mx-auto mt-2 max-w-[320px] text-[15px] leading-[23px] text-ink-muted">
+        {kind === 'label'
+          ? 'Check that you scanned the whole code. If the label is damaged, find the asset ID printed on it in the lab entrance board.'
+          : 'Check that you scanned the whole code on the lab door, or ask the lab technician.'}
+      </p>
     </Container>
   );
 }

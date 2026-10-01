@@ -8,6 +8,7 @@ import { useAuth, type AppRole } from '../AuthProvider';
 export function RequireRole({ roles }: { roles: AppRole[] }) {
   const { profile, loading } = useAuth();
   if (loading) return null;
-  if (!profile || !roles.includes(profile.role)) return <Navigate to="/notifications" replace />;
+  // Send them to their own home screen (HomeRedirect knows which), not a dead end.
+  if (!profile || !roles.includes(profile.role)) return <Navigate to="/" replace />;
   return <Outlet />;
 }

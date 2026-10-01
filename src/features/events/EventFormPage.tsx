@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -7,6 +7,7 @@ import { Button } from '@/ui/Button';
 import { Field, controlClass, type ControlProps } from '@/ui/Field';
 import { Icon } from '@/ui/Icon';
 import { Container, StickyActions } from '@/ui/Container';
+import { PhotoSource } from '@/ui/PhotoSource';
 import { useNetwork } from '@/app/NetworkProvider';
 import { useAuth } from '@/app/AuthProvider';
 import { db } from '@/offline/db';
@@ -23,7 +24,7 @@ import {
 } from './schemas';
 
 /** Heading and save verb per event type. */
-export const FORM_COPY: Record<EventTypeKey, { heading: string; save: string; icon: string }> = {
+const FORM_COPY: Record<EventTypeKey, { heading: string; save: string; icon: string }> = {
   use: { heading: 'Log use', save: 'Save use log', icon: 'play_circle' },
   fault: { heading: 'Report fault', save: 'Save fault report', icon: 'report' },
   maintenance: { heading: 'Record maintenance', save: 'Save maintenance record', icon: 'build' },
@@ -290,7 +291,7 @@ export function EventFormPage() {
                 onChange={(e) => setVendor(e.target.value)}
                 error={err('report.vendor_company')}
               />
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid grid-cols-1 [&>*]:min-w-0 gap-6 sm:grid-cols-2">
                 <Field label="Engineer name" value={engineer} onChange={(e) => setEngineer(e.target.value)} />
                 <Field label="Contact" value={contact} onChange={(e) => setContact(e.target.value)} help="Phone or email." />
               </div>
@@ -479,32 +480,36 @@ function FilePick({
 }
 
 function PhotoPick({ photos, onChange }: { photos: File[]; onChange: (files: File[]) => void }) {
+  const [previews, setPreviews] = useState<string[]>([]);
+  useEffect(() => {
+    const urls = photos.map((p) => URL.createObjectURL(p));
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [photos]);
+
   return (
     <div>
       <span className="mb-2 block text-[14px] font-semibold leading-[18px] text-ink-strong">Photos</span>
-      <div className="flex items-center gap-3">
-        <label className="flex h-[88px] w-[88px] cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-line-strong bg-surface-raised text-[12px] font-semibold text-brand">
-          <Icon name="add_a_photo" size={28} />
-          Add
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            className="sr-only"
-            onChange={(e) => onChange([...photos, ...Array.from(e.target.files ?? [])])}
-          />
-        </label>
-        {photos.length > 0 ? (
-          <Button intent="ghost" icon="delete" onClick={() => onChange([])}>
-            Clear {photos.length}
-          </Button>
-        ) : null}
-      </div>
+      {previews.length > 0 ? (
+        <ul className="m-0 mb-3 grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-4">
+          {previews.map((url, i) => (
+            <li key={url} className="relative">
+              <img src={url} alt={`Attachment ${i + 1}`} className="block aspect-square w-full rounded-md object-cover" />
+              <button
+                type="button"
+                aria-label={`Remove photo ${i + 1}`}
+                onClick={() => onChange(photos.filter((_, j) => j !== i))}
+                className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-surface-raised text-ink-strong shadow-raise"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <PhotoSource multiple takeIntent="secondary" onFiles={(files) => onChange([...photos, ...files])} />
       <span className="mt-2 block text-[13px] leading-[19px] text-ink-muted">
-        {photos.length > 0
-          ? `${photos.length} selected. Compressed on this phone before upload.`
-          : 'Compressed on this phone before upload, so it works on a weak connection.'}
+        Optional. Compressed on this phone before upload, so it works on a weak connection.
       </span>
     </div>
   );

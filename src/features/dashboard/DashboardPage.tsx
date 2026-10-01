@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { Container } from '@/ui/Container';
 import { Icon } from '@/ui/Icon';
 import { StatusBadge } from '@/ui/StatusBadge';
+import { EquipmentRow } from '@/ui/EquipmentRow';
 import { equipmentPhotoUrl } from '@/lib/supabase';
 import { formatDate } from '@/lib/dates';
 import { STATUS, STATUSES, statusClasses, type EquipmentStatus } from '@/lib/status';
 import { useAuth } from '@/app/AuthProvider';
 import { useMyEquipment } from '@/features/equipment';
+import { DashboardCharts } from './DashboardCharts';
 
 /**
  * Read-only. The tiles filter the table beneath them. A senior leader sees
@@ -61,7 +63,11 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+      <DashboardCharts items={inLab} labId={labFilter} />
+
+      <h2 className="mb-0 mt-8 text-[19px] font-semibold text-ink-strong">Equipment</h2>
+      <p className="mb-0 mt-1 text-[14px] text-ink-muted">Tap a status to filter the list.</p>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         <Tile active={filter === 'all'} onClick={() => setFilter('all')} label="All" count={inLab.length} icon="inventory_2" />
         {STATUSES.map((status) => (
           <Tile
@@ -76,7 +82,28 @@ export function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-line-subtle bg-surface-raised">
+      {/* Phones get rows they can tap; the table needs a wider screen. */}
+      <div className="mt-6 overflow-hidden rounded-lg border border-line-subtle md:hidden">
+        {visible.length === 0 && !isLoading ? (
+          <p className="m-0 bg-surface-raised px-4 py-10 text-center text-ink-muted">No machines in this view.</p>
+        ) : (
+          visible.map((item, index) => (
+            <EquipmentRow
+              key={item.id}
+              qrToken={item.qr_token}
+              name={item.name}
+              assetId={item.asset_id}
+              location={item.lab?.name ?? item.location}
+              nextServiceDue={item.next_service_due}
+              status={item.status}
+              photoUrl={equipmentPhotoUrl(item.photo_path)}
+              last={index === visible.length - 1}
+            />
+          ))
+        )}
+      </div>
+
+      <div className="mt-6 hidden overflow-x-auto rounded-lg border border-line-subtle bg-surface-raised md:block">
         <table className="w-full min-w-[44rem] border-collapse text-left text-[14px]">
           <thead>
             <tr className="border-b border-line-subtle text-ink-muted">

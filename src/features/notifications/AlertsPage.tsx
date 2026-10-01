@@ -88,7 +88,7 @@ export function AlertsPage() {
                 className={`rounded-lg border bg-surface-raised p-4 ${alert.read_at ? 'border-line-subtle' : 'border-line-strong'}`}
               >
                 <div className="flex items-start gap-3">
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tier.tone}`}>
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tier.tone}`}>
                     <Icon name={tier.icon} size={18} />
                   </span>
                   <div className="min-w-0 flex-1">

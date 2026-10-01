@@ -1,2 +1,2 @@
-export { PassportPage } from './PassportPage';
-export { fetchPassport, type PublicPassport } from './api';
+// What other features may use from the public passport.
+export { UnknownCode } from './PassportPage';

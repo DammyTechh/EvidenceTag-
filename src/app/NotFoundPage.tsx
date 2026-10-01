@@ -1,15 +1,19 @@
-import { useNavigate, useRouteError } from 'react-router-dom';
+import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-dom';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
 
 /**
- * Shown for an unknown address and for anything the router throws. An
- * unreadable label is the common case, so the copy speaks to that rather
- * than to a developer.
+ * Two jobs: an address that matches no route ("*" and router 404s), and
+ * anything a screen throws. They read differently, because "page not found"
+ * is the visitor's typo and "something went wrong" is ours.
+ *
+ * An unknown QR code is not handled here: the passport and lab board say so
+ * themselves, in words that mention the label.
  */
 export function NotFoundPage() {
   const navigate = useNavigate();
   const error = useRouteError();
+  const crashed = Boolean(error) && !(isRouteErrorResponse(error) && error.status === 404);
 
   if (import.meta.env.DEV && error) {
     console.error('Route error:', error);
@@ -17,20 +21,28 @@ export function NotFoundPage() {
 
   return (
     <div className="px-6 py-16 text-center">
-      <Icon name="qr_code_scanner" size={40} className="text-ink-muted" />
+      <Icon name={crashed ? 'error' : 'travel_explore'} size={40} className="text-ink-muted" />
       <h1 className="mt-4 text-[24px] font-semibold leading-[30px] text-ink-strong">
-        That label does not match any equipment
+        {crashed ? 'Something went wrong' : 'Page not found'}
       </h1>
-      <p className="mx-auto mt-2 max-w-[320px] text-[15px] leading-[23px] text-ink-muted">
-        Check that you scanned the whole code. If the label is damaged, the asset ID printed underneath it can
-        be searched from the lab board.
+      <p className="mx-auto mt-2 max-w-[340px] text-[15px] leading-[23px] text-ink-muted">
+        {crashed
+          ? 'This screen hit an error. Reloading usually fixes it. Anything you saved is safe on this device.'
+          : 'This address is not part of the app. If you were scanning a label, scan it again from the start.'}
       </p>
-      <div className="mt-6 flex justify-center gap-3">
-        <Button intent="secondary" onClick={() => navigate(-1)}>
-          Go back
-        </Button>
-        <Button intent="primary" icon="login" onClick={() => navigate('/login')}>
-          Staff sign in
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        {crashed ? (
+          <Button intent="primary" icon="refresh" onClick={() => window.location.reload()}>
+            Reload
+          </Button>
+        ) : (
+          <Button intent="secondary" onClick={() => navigate(-1)}>
+            Go back
+          </Button>
+        )}
+        {/* "/" forwards a signed-in person to their own home, everyone else to sign in. */}
+        <Button intent={crashed ? 'secondary' : 'primary'} icon="home" onClick={() => navigate('/')}>
+          Home
         </Button>
       </div>
     </div>

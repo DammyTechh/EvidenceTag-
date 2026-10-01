@@ -117,7 +117,7 @@ export function ReportsPage() {
       <h1 className="m-0 text-[28px] font-bold leading-8 tracking-[-0.015em] text-ink-strong">Reports</h1>
       <p className="mb-0 mt-2 text-[15px] text-ink-muted">Excel and Word files, generated on this device.</p>
 
-      <div className="mt-6 grid gap-4 rounded-lg border border-line-subtle bg-surface-raised p-4 sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 rounded-lg border border-line-subtle bg-surface-raised p-4 sm:grid-cols-3 [&>*]:min-w-0">
         <label className="flex flex-col gap-2 text-[14px] font-semibold text-ink-strong">
           Lab
           <select
@@ -176,7 +176,7 @@ export function ReportsPage() {
       ) : null}
 
       <h2 className="mb-3 mt-8 text-[19px] font-semibold text-ink-strong">Excel</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 [&>*]:min-w-0 gap-3 sm:grid-cols-2">
         <ReportCard
           icon="table_view"
           title="Equipment register"
@@ -210,7 +210,7 @@ export function ReportsPage() {
       </div>
 
       <h2 className="mb-3 mt-8 text-[19px] font-semibold text-ink-strong">Word</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 [&>*]:min-w-0 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-3 rounded-lg border border-line-subtle bg-surface-raised p-4">
           <p className="m-0 flex items-center gap-2 text-[16px] font-semibold text-ink-strong">
             <Icon name="description" className="text-brand" />
@@ -224,7 +224,7 @@ export function ReportsPage() {
             id="report-machine"
             value={machineId}
             onChange={(e) => setMachineId(e.target.value)}
-            className="min-h-touch rounded-md border border-line-strong bg-surface-raised px-3 text-[15px]"
+            className="min-h-touch w-full rounded-md border border-line-strong bg-surface-raised px-3 text-[15px]"
           >
             <option value="">Choose a machine…</option>
             {machineRows.map((m) => (

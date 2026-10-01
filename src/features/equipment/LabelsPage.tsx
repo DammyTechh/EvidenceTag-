@@ -122,9 +122,9 @@ export function LabelsPage() {
             <Icon name="error" filled className="shrink-0" />
             <span>
               <strong>Do not print these for real yet.</strong> The codes would point at{' '}
-              <span className="mono">{publicBaseUrl()}</span>, which only works on this computer. Set{' '}
+              <span className="mono break-all">{publicBaseUrl()}</span>, which only works on this computer. Set{' '}
               <span className="mono">VITE_PUBLIC_BASE_URL</span> to the live address (for example{' '}
-              <span className="mono">https://evidencetag.yourschool.edu.ng</span>) and restart. Test prints are fine.
+              <span className="mono break-all">https://evidencetag.yourschool.edu.ng</span>) and restart. Test prints are fine.
             </span>
           </p>
         ) : null}
@@ -262,7 +262,7 @@ export function LabelsPage() {
       {/* What actually prints. Shown on screen too, as the preview. */}
       <div className="mx-auto w-full max-w-[210mm] px-4 pb-12 print:max-w-none print:p-0">
         {tab === 'equipment' ? (
-          <div className={layout === 'sheet' ? 'grid grid-cols-2 gap-[4mm]' : 'flex flex-col'}>
+          <div className={layout === 'sheet' ? 'grid grid-cols-1 gap-[4mm] sm:grid-cols-2 print:grid-cols-2' : 'flex flex-col'}>
             {toPrint.map((m) => (
               <EquipmentLabel key={m.id} machine={m} single={layout === 'single'} />
             ))}
@@ -297,7 +297,7 @@ function EquipmentLabel({ machine, single }: { machine: LabelMachine; single: bo
     <div
       className={[
         'flex items-center gap-[4mm] rounded-lg border-[2mm] border-accent bg-surface-raised p-[3mm] [break-inside:avoid]',
-        single ? 'mx-auto mb-6 h-[70mm] w-[100mm] print:mb-0 print:[break-after:page]' : 'h-[64mm]',
+        single ? 'mx-auto mb-6 h-[70mm] w-full max-w-[100mm] print:mb-0 print:w-[100mm] print:[break-after:page]' : 'h-[64mm]',
       ].join(' ')}
     >
       <QrSvg url={passportUrl(machine.qr_token)} className="h-[44mm] w-[44mm] shrink-0 [&>svg]:h-full [&>svg]:w-full" />
@@ -314,14 +314,14 @@ function EquipmentLabel({ machine, single }: { machine: LabelMachine; single: bo
 
 function LabEntranceCard({ lab }: { lab: LabCard }) {
   return (
-    <div className="mx-auto flex w-full max-w-[190mm] flex-col items-center rounded-xl border-[3mm] border-accent bg-surface-raised p-[10mm] text-center [break-inside:avoid] print:h-[270mm] print:justify-center print:[break-after:page]">
+    <div className="mx-auto flex w-full max-w-[190mm] flex-col items-center rounded-xl border-[3mm] border-accent bg-surface-raised p-[6mm] text-center sm:p-[10mm] [break-inside:avoid] print:h-[270mm] print:justify-center print:[break-after:page]">
       <Brandmark height={40} />
-      <h3 className="mb-0 mt-[6mm] text-[32px] font-bold leading-tight text-ink-strong">{lab.name}</h3>
+      <h3 className="mb-0 mt-[6mm] text-[24px] font-bold leading-tight text-ink-strong sm:text-[32px]">{lab.name}</h3>
       <p className="mb-0 mt-[2mm] text-[16px] text-ink-muted">
         {[lab.building, lab.room].filter(Boolean).join(' · ')}
       </p>
-      <QrSvg url={labBoardUrl(lab.public_token)} className="mt-[8mm] h-[110mm] w-[110mm] [&>svg]:h-full [&>svg]:w-full" />
-      <p className="mb-0 mt-[6mm] text-[20px] font-semibold text-ink-strong">
+      <QrSvg url={labBoardUrl(lab.public_token)} className="mt-[8mm] aspect-square w-full max-w-[110mm] [&>svg]:h-full [&>svg]:w-full" />
+      <p className="mb-0 mt-[6mm] text-[16px] font-semibold text-ink-strong sm:text-[20px]">
         Scan to see every machine in this lab and whether it is safe to use
       </p>
       <p className="mb-0 mt-[2mm] text-[13px] text-ink-muted">{institution.name}</p>

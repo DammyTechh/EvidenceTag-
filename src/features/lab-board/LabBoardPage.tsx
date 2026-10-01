@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { UnknownCode } from '@/features/public-passport';
 import { useQuery } from '@tanstack/react-query';
 import { supabase, equipmentPhotoUrl } from '@/lib/supabase';
 import { EquipmentRow } from '@/ui/EquipmentRow';
@@ -26,7 +27,7 @@ export function LabBoardPage() {
   const [filter, setFilter] = useState<EquipmentStatus | 'all'>('all');
   const [search, setSearch] = useState('');
 
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['lab', labToken],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_public_lab', { p_public_token: labToken });
@@ -47,12 +48,25 @@ export function LabBoardPage() {
     return !q || item.name.toLowerCase().includes(q) || item.asset_id.toLowerCase().includes(q);
   });
 
-  if (!data)
+  if (isLoading)
     return (
       <Container className="py-10">
         <p className="text-ink-muted">Loading this lab…</p>
       </Container>
     );
+
+  if (isError)
+    return (
+      <Container className="py-16 text-center">
+        <Icon name="wifi_off" size={40} className="text-ink-muted" />
+        <h1 className="mt-4 text-[19px] font-semibold text-ink-strong">This lab board can&rsquo;t load right now</h1>
+        <p className="mt-2 text-[13px] text-ink-muted">
+          The server can&rsquo;t be reached. Try again once you are on the campus network.
+        </p>
+      </Container>
+    );
+
+  if (!data) return <UnknownCode kind="lab" />;
 
   return (
     <Container className="pb-10">

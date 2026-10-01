@@ -1,7 +1,8 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { Icon } from './Icon';
 
-type Intent = 'primary' | 'secondary' | 'ghost' | 'danger' | 'scan';
+export type ButtonIntent = 'primary' | 'secondary' | 'ghost' | 'danger' | 'scan';
+type Intent = ButtonIntent;
 
 const INTENT: Record<Intent, string> = {
   primary: 'bg-brand text-ink-ondark hover:bg-brand-press border-transparent',
