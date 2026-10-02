@@ -5,6 +5,8 @@ import { Container } from '@/ui/Container';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
 import { formatDate } from '@/lib/dates';
+import { PushSettings } from './PushSettings';
+import { AlertSettings } from './AlertSettings';
 
 interface AlertRow {
   id: string;
@@ -34,7 +36,9 @@ export function AlertsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, tier, title, body, read_at, closed_at, created_at, equipment:equipment(qr_token, asset_id)')
+        .select(
+          'id, tier, title, body, read_at, closed_at, created_at, equipment:equipment(qr_token, asset_id)',
+        )
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -50,7 +54,11 @@ export function AlertsPage() {
         .in('id', ids);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      // The header badge too; it used to wait for the next navigation.
+      void queryClient.invalidateQueries({ queryKey: ['alerts-unread'] });
+    },
   });
 
   const unread = data.filter((a) => !a.read_at);
@@ -88,11 +96,15 @@ export function AlertsPage() {
                 className={`rounded-lg border bg-surface-raised p-4 ${alert.read_at ? 'border-line-subtle' : 'border-line-strong'}`}
               >
                 <div className="flex items-start gap-3">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tier.tone}`}>
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tier.tone}`}
+                  >
                     <Icon name={tier.icon} size={18} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className={`m-0 text-[15px] leading-[21px] text-ink-strong ${alert.read_at ? '' : 'font-semibold'}`}>
+                    <p
+                      className={`m-0 text-[15px] leading-[21px] text-ink-strong ${alert.read_at ? '' : 'font-semibold'}`}
+                    >
                       {alert.title}
                     </p>
                     <p className="mb-0 mt-1 text-[14px] leading-5 text-ink">{alert.body}</p>
@@ -127,6 +139,8 @@ export function AlertsPage() {
           })}
         </ul>
       )}
+      <AlertSettings />
+      <PushSettings />
     </Container>
   );
 }

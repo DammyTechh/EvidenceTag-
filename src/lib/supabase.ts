@@ -26,6 +26,9 @@ export async function signedUrl(bucket: string, path: string, seconds = 600): Pr
   return data.signedUrl;
 }
 
+/** Private. SOPs, manuals and certificates; visitors may open only listed SOPs (0007, 0009). */
+export const DOCUMENTS_BUCKET = 'documents';
+
 /** The equipment-photos bucket is public: visitors read the passport without an account. */
 export const EQUIPMENT_PHOTO_BUCKET = 'equipment-photos';
 

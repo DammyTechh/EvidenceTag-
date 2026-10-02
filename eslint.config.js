@@ -9,7 +9,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
  * Every one of these has been a real bug on a project like this.
  */
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'src/styles/**', 'src/lib/database.types.ts', 'supabase/functions/**'] },
+  { ignores: ['dist', 'dist-e2e', 'test-results', 'playwright-report', 'dev-dist', 'src/styles/**', 'src/lib/database.types.ts', 'supabase/functions/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

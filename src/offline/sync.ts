@@ -78,10 +78,13 @@ export async function sync(): Promise<SyncResult> {
           if (error) throw error;
           break;
         }
-        case 'equipment': {
-          // Profile edits are last-write-wins on updated_at, with a notice if
-          // the server copy moved on while this device was away.
-          const { error } = await supabase.from('equipment').upsert(item.payload, { onConflict: 'id' });
+        case 'document': {
+          // Insert once. The id is the device's own uuid, so a retry after a
+          // dropped response finds the row already there and moves on. A
+          // document is never updated from here; only withdrawn, online.
+          const { error } = await supabase
+            .from('equipment_documents')
+            .upsert(item.payload, { onConflict: 'id', ignoreDuplicates: true });
           if (error) throw error;
           break;
         }

@@ -1,4 +1,7 @@
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { digestEmail, escapeHtml, footer, type DigestPayload, type RenderedEmail } from './render.ts';
+
+export type { RenderedEmail } from './render.ts';
 
 /**
  * Email tiers use the SAME three signals as the interface: neutral for
@@ -26,27 +29,28 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export interface RenderedEmail {
-  subject: string;
-  html: string;
-  attachments?: { filename: string; content: string }[];
-}
 
-function layout(template: keyof typeof SIGNAL, title: string, body: string, actionUrl: string): string {
-  const signal = SIGNAL[template];
+function layout(
+  template: keyof typeof SIGNAL,
+  title: string,
+  body: string,
+  actionUrl: string,
+  reason?: unknown,
+): string {
+  const signal = SIGNAL[template] ?? SIGNAL.upcoming;
   return `<!doctype html><html><body style="margin:0;background:#f3f5f1;font-family:Archivo,Helvetica,Arial,sans-serif;color:#2b3831">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px">
     <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e2e6dd;border-radius:14px;overflow:hidden">
       <tr><td style="background:${signal.band};color:${signal.ink};padding:14px 24px;font-size:14px;font-weight:600">${signal.word}</td></tr>
       <tr><td style="padding:24px">
-        <h1 style="margin:0;font-size:22px;line-height:28px;color:#10211a">${title}</h1>
-        <p style="margin:12px 0 0;font-size:15px;line-height:23px">${body}</p>
+        <h1 style="margin:0;font-size:22px;line-height:28px;color:#10211a">${escapeHtml(title)}</h1>
+        <p style="margin:12px 0 0;font-size:15px;line-height:23px">${escapeHtml(body)}</p>
         <p style="margin:24px 0 0">
           <a href="${actionUrl}" style="display:inline-block;background:#0b4a28;color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:15px;font-weight:600">Open the equipment record</a>
         </p>
       </td></tr>
       <tr><td style="padding:16px 24px;border-top:1px solid #e2e6dd;font-size:12px;line-height:18px;color:#5a6459">
-        You receive this because you are a technician or HOD for this laboratory.
+        ${escapeHtml(footer(reason))}
       </td></tr>
     </table>
   </td></tr></table></body></html>`;
@@ -58,6 +62,8 @@ export async function renderEmail(
   payload: Record<string, unknown>,
 ): Promise<RenderedEmail> {
   const base = Deno.env.get('APP_BASE_URL')!;
+  if (template === 'weekly_digest') return digestEmail(payload as DigestPayload, base);
+
   const assetId = String(payload.asset_id ?? '');
   const name = String(payload.equipment_name ?? '');
   const actionUrl = `${base}/staff`;
@@ -72,7 +78,7 @@ export async function renderEmail(
           ? `Servicing overdue: ${name} (${assetId})`
           : `Service due soon: ${name} (${assetId})`;
 
-  const html = layout(tier, String(payload.title ?? subject), String(payload.body ?? ''), actionUrl);
+  const html = layout(tier, String(payload.title ?? subject), String(payload.body ?? ''), actionUrl, payload.reason);
 
   // The replacement email carries the engineer's report, so the technician can
   // forward one message straight to procurement.

@@ -35,7 +35,9 @@ export function useEquipmentRef(qrToken: string) {
 
   const query = useQuery({
     queryKey: ['equipment-ref', qrToken],
-    enabled: isWriter && qrToken.length > 0,
+    // Any signed-in person: leaders read documents through this id too.
+    // RLS answers only for machines they may see; canWrite stays strict.
+    enabled: Boolean(profile) && qrToken.length > 0,
     staleTime: Infinity,
     queryFn: async (): Promise<EquipmentRef | null> => {
       const { data, error } = await supabase

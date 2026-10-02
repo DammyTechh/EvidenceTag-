@@ -28,6 +28,10 @@ describe('the route table', () => {
     expect(paths).toContain('/l/:labToken');
   });
 
+  it('lets staff correct a machine after registration', () => {
+    expect(routes.map((r) => r.path)).toContain('/staff/equipment/:id/edit');
+  });
+
   it('shows our own screen when the router throws', () => {
     // The data router exposes the boundary as a flag, not as the element.
     expect(router.routes[0]?.hasErrorBoundary).toBe(true);

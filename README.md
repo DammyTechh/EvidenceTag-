@@ -22,7 +22,7 @@ dev dependency, so `npx supabase` works without a global install).
 npm ci
 cp deploy/env/.env.fugo.example deploy/env/.env.fugo   # then fill it in
 npx supabase start                                     # prints the URL and keys
-npx supabase db reset                                  # migrations 0001–0008
+npx supabase db reset                                  # migrations 0001–0010
 npm run dev                                            # http://localhost:5173
 ```
 
@@ -42,7 +42,8 @@ Sign in with an account from `supabase/migrations/0006_seed_users.sql`.
 | `npm run dev` / `dev:instb` | dev server for institution A / B |
 | `npm run build:fugo` / `build:instb` | typecheck and production build into `dist/` |
 | `npm run preview` | serve the last build |
-| `npm run check` | typecheck + lint + tests (run before every push) |
+| `npm run check` | typecheck + lint + tests, including migrations run against real Postgres (before every push) |
+| `npm run test:e2e` | 22 browser scenarios on phone and desktop (before every release; `npx playwright install chromium` once) |
 | `npm run db:reset` / `db:push` | rebuild the local database / push migrations to the linked project |
 | `npm run gen:types` | regenerate `src/lib/database.types.ts` from the local database |
 
@@ -72,6 +73,8 @@ src/
 supabase/
   migrations/ 0001 schema · 0002 RLS · 0003 triggers · 0004 cron jobs
               0005 institution + labs · 0006 accounts · 0007 storage · 0008 outcomes
+              0009 server-column guard, documents, realtime, shared-phone push
+              0010 per-person alert settings, leader alerts, weekly digest
   functions/  dispatch-outbox, seed-users, shared email templates
 deploy/env/   one env file per institution (real ones are gitignored)
 docs/         HANDOVER.md

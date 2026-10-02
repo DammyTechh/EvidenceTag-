@@ -70,7 +70,13 @@ enable_signup = true
 enable_confirmations = false
 
 [functions.dispatch-outbox]
-verify_jwt = true
+# The function checks for the service key itself (_shared/caller.ts).
+# verify_jwt only proves a token is a signed JWT, which the public anon key
+# is, so it never protected this; it also rejects the new sb_secret_ keys.
+verify_jwt = false
 
 [functions.seed-users]
-verify_jwt = true
+# The function checks for the service key itself (_shared/caller.ts).
+# verify_jwt only proves a token is a signed JWT, which the public anon key
+# is, so it never protected this; it also rejects the new sb_secret_ keys.
+verify_jwt = false

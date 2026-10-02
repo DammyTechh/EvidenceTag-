@@ -27,9 +27,15 @@ function deferred(load: () => Promise<ComponentType>): ReactNode {
   );
 }
 
-const DashboardPage = deferred(() => import('@/features/dashboard/DashboardPage').then((m) => m.DashboardPage));
+const DashboardPage = deferred(() =>
+  import('@/features/dashboard/DashboardPage').then((m) => m.DashboardPage),
+);
 const ReportsPage = deferred(() => import('@/features/reports/ReportsPage').then((m) => m.ReportsPage));
 const LabelsPage = deferred(() => import('@/features/equipment/LabelsPage').then((m) => m.LabelsPage));
+// Needs a connection anyway (editing is online-only), so it can load on demand.
+const EditEquipmentPage = deferred(() =>
+  import('@/features/equipment/EditEquipmentPage').then((m) => m.EditEquipmentPage),
+);
 const AdminPage = deferred(() => import('@/features/admin/AdminPage').then((m) => m.AdminPage));
 const ReplacementOutcomePage = deferred(() =>
   import('@/features/service-reports/ReplacementOutcomePage').then((m) => m.ReplacementOutcomePage),
@@ -81,6 +87,7 @@ export const router = createBrowserRouter(
                     { path: '/staff', element: <StaffHomePage /> },
                     { path: '/staff/equipment/new', element: <RegisterEquipmentPage /> },
                     { path: '/staff/equipment/:id/event/:type', element: <EventFormPage /> },
+                    { path: '/staff/equipment/:id/edit', element: EditEquipmentPage },
                     { path: '/staff/equipment/:id/replacement', element: ReplacementOutcomePage },
                     { path: '/staff/labels', element: LabelsPage },
                   ],

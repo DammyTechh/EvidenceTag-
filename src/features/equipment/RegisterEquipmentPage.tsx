@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { buildAssetId } from '@/lib/institution';
+import { buildAssetId, institution } from '@/lib/institution';
+import { formatDate } from '@/lib/dates';
 import { Button } from '@/ui/Button';
 import { Field, controlClass } from '@/ui/Field';
 import { Icon } from '@/ui/Icon';
@@ -12,8 +13,15 @@ import { useAuth } from '@/app/AuthProvider';
 import { useNetwork } from '@/app/NetworkProvider';
 import { db } from '@/offline/db';
 import { sync } from '@/offline/sync';
+import { enqueueEvent } from '@/offline/outbox';
+import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { generateQrToken, passportUrl, renderQrSvg } from './qr';
 import { queueEquipmentPhoto } from './photo';
+import { planInitialHistory } from './initialHistory';
+
+/** Today as a calendar date where the lab is, not where the server is. */
+const todayInLab = () => format(toZonedTime(new Date(), institution.timezone), 'yyyy-MM-dd');
 
 interface Lab {
   id: string;
@@ -26,6 +34,7 @@ interface Registered {
   asset_id: string;
   name: string;
   labName: string;
+  firstDue: string | null;
 }
 
 /**
@@ -62,6 +71,8 @@ export function RegisterEquipmentPage() {
   const [location, setLocation] = useState('');
   const [conditions, setConditions] = useState('');
   const [intervalDays, setIntervalDays] = useState('180');
+  const [lastServiced, setLastServiced] = useState('');
+  const [nextDue, setNextDue] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState<string>();
@@ -95,6 +106,16 @@ export function RegisterEquipmentPage() {
     if (!name.trim()) return setError('Give the machine a name.');
     const days = Number(intervalDays);
     if (!Number.isInteger(days) || days < 1) return setError('Service interval must be a whole number of days.');
+
+    const history = planInitialHistory({
+      lastServiced,
+      nextDue,
+      intervalDays: days,
+      today: todayInLab(),
+      nowIso: new Date().toISOString(),
+      timezone: institution.timezone,
+    });
+    if (!history.ok) return setError(history.error);
 
     setBusy(true);
     try {
@@ -143,12 +164,34 @@ export function RegisterEquipmentPage() {
           next_service_due: string | null;
         };
         await db.equipment.put({ ...saved, cached_at: Date.now() });
-        if (photo) {
-          await queueEquipmentPhoto(saved.id, photo);
-          void sync().catch(() => undefined);
+
+        // The service history it arrived with, as ordinary events through the
+        // outbox: if this request drops after the machine was created, the
+        // history still reaches the server, and the trigger works out the
+        // due date exactly as it does for every later service.
+        for (const planned of history.events) {
+          await enqueueEvent({
+            id: crypto.randomUUID(),
+            equipment_id: saved.id,
+            type: planned.type,
+            occurred_at: planned.occurred_at,
+            data: planned.data,
+            severity: null,
+            ...(planned.next_due_date ? { next_due_date: planned.next_due_date } : {}),
+            recorded_by: profile.id,
+            synced: false,
+          });
         }
+        if (photo) await queueEquipmentPhoto(saved.id, photo);
+        if (photo || history.events.length > 0) void sync().catch(() => undefined);
         void queryClient.invalidateQueries({ queryKey: ['my-equipment'] });
-        setDone({ qr_token: saved.qr_token, asset_id: saved.asset_id, name: saved.name, labName: lab.name });
+        setDone({
+          qr_token: saved.qr_token,
+          asset_id: saved.asset_id,
+          name: saved.name,
+          labName: lab.name,
+          firstDue: history.firstDue,
+        });
         return;
       }
       throw new Error('Could not assign an asset ID. Try again.');
@@ -171,6 +214,16 @@ export function RegisterEquipmentPage() {
         <p className="m-0 flex items-center gap-2 text-[15px] font-semibold text-brand print:hidden">
           <Icon name="check_circle" filled />
           Registered. Print the label and stick it on the machine.
+        </p>
+        <p
+          className={`mb-0 mt-2 flex items-start gap-2 text-[14px] leading-5 print:hidden ${
+            done.firstDue ? 'text-ink' : 'text-attention-ink'
+          }`}
+        >
+          <Icon name={done.firstDue ? 'event' : 'event_busy'} size={18} className="shrink-0" />
+          {done.firstDue
+            ? `First service due ${formatDate(done.firstDue)}. Alerts start 30 days before.`
+            : 'No service date recorded, so this machine will not alert until its first service is logged.'}
         </p>
 
         <div className="mt-6 rounded-xl border-4 border-accent bg-surface-raised p-6 text-center">
@@ -203,6 +256,8 @@ export function RegisterEquipmentPage() {
             setSerial('');
             setLocation('');
             setConditions('');
+            setLastServiced('');
+            setNextDue('');
             setPhoto(null);
           }}
         >
@@ -275,6 +330,28 @@ export function RegisterEquipmentPage() {
           help="Used to work out the next due date after each service."
         />
 
+        <fieldset className="m-0 flex flex-col gap-5 rounded-lg border border-line-subtle p-4">
+          <legend className="px-1 text-[14px] font-semibold leading-[18px] text-ink-strong">Service history so far</legend>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 [&>*]:min-w-0">
+            <Field
+              label="Last serviced"
+              type="date"
+              max={todayInLab()}
+              value={lastServiced}
+              onChange={(e) => setLastServiced(e.target.value)}
+              help="From the service sticker or the logbook."
+            />
+            <Field
+              label="Next service due"
+              type="date"
+              value={nextDue}
+              onChange={(e) => setNextDue(e.target.value)}
+              help="Only if an engineer set a date. Otherwise it is worked out."
+            />
+          </div>
+          <DuePreview lastServiced={lastServiced} nextDue={nextDue} intervalDays={intervalDays} />
+        </fieldset>
+
         <div>
           <span className="mb-2 block text-[14px] font-semibold leading-[18px] text-ink-strong">Photo</span>
           {photoPreview ? (
@@ -307,5 +384,45 @@ export function RegisterEquipmentPage() {
         </div>
       </form>
     </Container>
+  );
+}
+
+/**
+ * Says, before saving, what the first due date will be — or that there will
+ * not be one. A machine with no date never alerts, and that should never be
+ * a surprise found months later.
+ */
+function DuePreview({ lastServiced, nextDue, intervalDays }: { lastServiced: string; nextDue: string; intervalDays: string }) {
+  const days = Number(intervalDays);
+  const plan = planInitialHistory({
+    lastServiced,
+    nextDue,
+    intervalDays: Number.isInteger(days) && days > 0 ? days : 0,
+    today: todayInLab(),
+    nowIso: new Date().toISOString(),
+    timezone: institution.timezone,
+  });
+
+  if (!plan.ok) {
+    return (
+      <p className="m-0 flex items-start gap-2 text-[14px] leading-5 text-urgent-ink">
+        <Icon name="error" filled size={18} className="shrink-0" />
+        {plan.error}
+      </p>
+    );
+  }
+  if (!plan.firstDue) {
+    return (
+      <p className="m-0 flex items-start gap-2 rounded-md bg-attention-tint p-3 text-[14px] leading-5 text-attention-ink">
+        <Icon name="warning" size={18} className="shrink-0" />
+        Without either date this machine has no due date, so it will not alert until its first service is recorded.
+      </p>
+    );
+  }
+  return (
+    <p className="m-0 flex items-start gap-2 text-[14px] leading-5 text-ink">
+      <Icon name="event" size={18} className="shrink-0 text-ink-muted" />
+      First service due <strong className="mono font-medium">{formatDate(plan.firstDue)}</strong>
+    </p>
   );
 }

@@ -7,6 +7,7 @@ import { Icon } from '@/ui/Icon';
 import { supabase } from '@/lib/supabase';
 import { useNetwork } from './NetworkProvider';
 import { useAuth, type AppRole } from './AuthProvider';
+import { reconcilePush, useLiveAlerts } from '@/features/notifications';
 
 interface NavEntry {
   to: string;
@@ -73,6 +74,13 @@ export function AppShell() {
       return count ?? 0;
     },
   });
+
+  // Live badge, and re-record this device for push if the browser is
+  // already subscribed (a shared phone someone else turned it on for).
+  useLiveAlerts(showNav ? profile?.id : undefined);
+  useEffect(() => {
+    if (showNav) void reconcilePush();
+  }, [showNav, profile?.id]);
 
   // Close the menu on navigation and on Escape.
   useEffect(() => setMenuOpen(false), [location.pathname]);

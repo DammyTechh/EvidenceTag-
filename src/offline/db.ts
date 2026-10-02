@@ -43,7 +43,7 @@ export interface CachedEvent {
   synced: boolean;
 }
 
-export type OutboxKind = 'event' | 'service_report' | 'attachment' | 'equipment' | 'equipment_photo';
+export type OutboxKind = 'event' | 'service_report' | 'attachment' | 'equipment_photo' | 'document';
 
 export interface OutboxItem {
   /** Same uuid as the row it will become, so a retry can never double-insert. */

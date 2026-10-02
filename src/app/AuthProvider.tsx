@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { forgetThisDevice } from '@/features/notifications';
 
 export type AppRole = 'technician' | 'lab_hod' | 'senior_leader' | 'admin';
 
@@ -77,6 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Before the session ends, while removing the row is still authorised.
+    await forgetThisDevice();
     await supabase.auth.signOut();
   };
 

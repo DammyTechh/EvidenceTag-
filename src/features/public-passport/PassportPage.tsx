@@ -9,7 +9,7 @@ import { Container, StickyActions } from '@/ui/Container';
 import { useAuth } from '@/app/AuthProvider';
 import { formatDate, daysUntil } from '@/lib/dates';
 import { EVENT_ICON, EVENT_LABEL, serviceLine } from '@/lib/status';
-import { EquipmentPhoto, useEquipmentRef } from '@/features/equipment';
+import { EquipmentDocuments, EquipmentPhoto, openDocument, useEquipmentRef } from '@/features/equipment';
 
 /**
  * The most-used screen in the product and the only one most people ever see.
@@ -24,6 +24,7 @@ export function PassportPage() {
   // The internal id and lab, for staff only. canWrite = in this machine's lab.
   const { ref: equipment, canWrite } = useEquipmentRef(qrToken);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [sopError, setSopError] = useState<string>();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['passport', qrToken],
@@ -104,28 +105,57 @@ export function PassportPage() {
         </p>
       </Section>
 
-      {data.documents.length > 0 ? (
+      {equipment && profile ? (
+        // Staff: every document, with add and withdraw for this lab's team.
+        <Section title="Documents">
+          <EquipmentDocuments equipmentId={equipment.id} canEdit={canWrite} />
+        </Section>
+      ) : data.documents.length > 0 ? (
+        // Visitors: the SOPs only, which is all the storage policy lets them open.
         <Section title="Standard operating procedures">
           <ul className="m-0 flex list-none flex-col gap-[10px] p-0">
             {data.documents.map((doc) => (
               <li key={doc.file_path}>
-                <a
-                  href={`/sop/${encodeURIComponent(doc.file_path)}`}
-                  className="flex items-center gap-3 rounded-lg border border-line-subtle bg-surface-raised px-4 py-3 no-underline"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSopError(undefined);
+                    openDocument(doc.file_path).catch((err: Error) => setSopError(err.message));
+                  }}
+                  className="flex min-h-touch w-full items-center gap-3 rounded-lg border border-line-subtle bg-surface-raised px-4 py-3 text-left"
                 >
                   <Icon name="picture_as_pdf" size={28} className="text-urgent-ink" />
                   <span className="flex-1 text-[15px] font-semibold leading-[21px] text-ink-strong">
                     {doc.title}
                   </span>
                   <Icon name="open_in_new" className="text-ink-muted" />
-                </a>
+                </button>
               </li>
             ))}
           </ul>
+          {sopError ? (
+            <p role="alert" className="mb-0 mt-2 flex items-start gap-2 text-[13px] text-urgent-ink">
+              <Icon name="error" filled size={18} className="shrink-0" />
+              {sopError}
+            </p>
+          ) : null}
         </Section>
       ) : null}
 
-      <Section title="Specification">
+      <Section
+        title="Specification"
+        action={
+          canWrite && equipment ? (
+            <Button
+              intent="ghost"
+              icon="edit"
+              onClick={() => navigate(`/staff/equipment/${equipment.id}/edit`)}
+            >
+              Edit details
+            </Button>
+          ) : null
+        }
+      >
         <dl className="m-0 rounded-lg border border-line-subtle bg-surface-raised px-4">
           <Row label="Manufacturer" value={data.manufacturer} />
           <Row label="Model" value={data.model} mono />
@@ -168,7 +198,11 @@ export function PassportPage() {
             <Icon name="swap_horiz" />
             An engineer recommended replacing this machine. Record what happened once it is decided.
           </span>
-          <Button intent="danger" icon="task_alt" onClick={() => navigate(`/staff/equipment/${equipment.id}/replacement`)}>
+          <Button
+            intent="danger"
+            icon="task_alt"
+            onClick={() => navigate(`/staff/equipment/${equipment.id}/replacement`)}
+          >
             Record replacement outcome
           </Button>
         </p>
@@ -178,7 +212,11 @@ export function PassportPage() {
         {canWrite && equipment ? (
           <div className="flex w-full flex-col gap-3">
             {panelOpen ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label="Choose what to record">
+              <div
+                className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+                role="group"
+                aria-label="Choose what to record"
+              >
                 {UPDATE_TYPES.map((t) => (
                   <Button
                     key={t.type}
@@ -207,7 +245,12 @@ export function PassportPage() {
             {canUpdate ? 'This machine is in another lab. You can view it but not update it.' : 'View only.'}
           </p>
         ) : (
-          <Button intent="secondary" icon="lock" block onClick={() => navigate('/login', { state: { from: `/e/${qrToken}` } })}>
+          <Button
+            intent="secondary"
+            icon="lock"
+            block
+            onClick={() => navigate('/login', { state: { from: `/e/${qrToken}` } })}
+          >
             Staff sign in to update
           </Button>
         )}
@@ -241,10 +284,13 @@ const UPDATE_TYPES = [
   { type: 'service_report', label: 'Service report', icon: 'engineering' },
 ] as const;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="pt-8">
-      <h2 className="m-0 mb-3 text-[19px] font-semibold leading-[26px] text-ink-strong">{title}</h2>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="m-0 text-[19px] font-semibold leading-[26px] text-ink-strong">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   );

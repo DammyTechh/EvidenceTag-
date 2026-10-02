@@ -7,6 +7,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 import { renderEmail } from '../_shared/templates.ts';
+import { requireService } from '../_shared/requireService.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -131,7 +132,12 @@ async function sendPush() {
   return sent;
 }
 
-Deno.serve(async () => {
+Deno.serve(async (request) => {
+  // Only pg_cron (with the service key from Vault) and operators may drain
+  // the outbox. Anyone else could trigger a burst of email sends.
+  const forbidden = requireService(request);
+  if (forbidden) return forbidden;
+
   const { data: inst } = await supabase.from('institution').select('email_from, product_name').single();
   const from = `${inst?.product_name ?? 'EvidenceTag'} <${inst?.email_from}>`;
 

@@ -5,6 +5,9 @@
 // committed. Service role only.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { requireService } from '../_shared/requireService.ts';
+
+const ROLES = ['technician', 'lab_hod', 'senior_leader', 'admin'] as const;
 
 interface SeedUser {
   email: string;
@@ -22,10 +25,28 @@ const supabase = createClient(
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
+  // Creates accounts with any role, including admin. Without this check the
+  // public anon key was enough to call it. See _shared/caller.ts.
+  const forbidden = requireService(request);
+  if (forbidden) return forbidden;
+
   const { defaultPassword, users } = (await request.json()) as {
     defaultPassword: string;
     users: SeedUser[];
   };
+
+  if (typeof defaultPassword !== 'string' || defaultPassword.length < 10) {
+    return Response.json({ error: 'defaultPassword must be at least 10 characters.' }, { status: 400 });
+  }
+  const invalid = (users ?? []).filter(
+    (u) => !u?.email?.includes('@') || !u.full_name || !ROLES.includes(u.role) || !Array.isArray(u.labs),
+  );
+  if (!Array.isArray(users) || invalid.length > 0) {
+    return Response.json(
+      { error: 'Every user needs email, full_name, labs[] and a role of ' + ROLES.join(', '), invalid },
+      { status: 400 },
+    );
+  }
 
   const created: string[] = [];
   const skipped: string[] = [];

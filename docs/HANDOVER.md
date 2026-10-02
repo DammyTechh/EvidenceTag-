@@ -16,22 +16,33 @@ and deploy it, how to operate it day to day, and what is still to do.
 | --- | --- | --- |
 | 4.1 Public passport `/e/:token` | **Done** | No login. Photo, status, SOPs, specs, full history (decision: full, not summary). Update panel for technician/HOD of that lab. |
 | 4.2 Lab entrance board `/l/:token` | **Done** | Thumbnails, status filter chips, search. |
-| 4.3 Equipment registration | **Done** | Auto asset ID (`FUGO-CHEM1-0001`), permanent QR token, optional photo, label shown on save. SOP document upload is **not** in the form yet (see §12). |
+| 4.3 Equipment registration | **Done** | Auto asset ID (`FUGO-CHEM1-0001`), permanent QR token, optional photo, **service history so far** (last serviced, engineer's next date) with a live first-due-date preview, label shown on save. Details editable afterwards. |
 | 4.4 Record an event (5 types) | **Done** | Use, fault, maintenance, inspection, external service report (with signed report file). All save offline first. |
 | 4.5 Replacement recommendation | **Done** | Replace → status + critical alert; outcome page records Replaced / Retired / Kept in service. |
 | 4.6 Dashboard | **Done** | Summary cards, status-by-lab, services due by month, faults per lab per month, filterable table. HOD sees own labs. |
 | 4.7 Reports | **Done** | Excel: register, service schedule, fault log, event history. Word: equipment report, lab summary. Generated in the browser. |
-| 4.8 Notifications centre | **Partly** | In-app alert list with unread count and mark-read. **Not built:** push opt-in, per-user notification settings, live (Realtime) updates. |
+| 4.8 Notifications centre | **Done** | Alert list, live unread badge (Realtime), push opt-in per device, per-person email/push settings, opt-in critical alerts for senior leaders, Monday digest. |
+| Documents (SOPs, manuals, certificates) | **Done** | Add on the passport, offline-first; withdraw instead of delete. Visitors see live SOPs only. |
 | 5 Alerts (cron, email, outbox) | **Written, not live** | Triggers, tiers, dedupe, cron and `dispatch-outbox` exist. Need Resend + Vault secrets on the hosted project to actually send (§7). |
 | 6 Offline | **Done for staff devices** | Device cache, outbox, sync, 3-state network badge. See §6 for the honest limit on Supabase Cloud. |
 | Labels | **Done** | A4 sheet of 8 or one per page, plus lab entrance cards. Browser print (Save as PDF). |
 | Admin | **Done** | Labs with entrance links; accounts with deactivate/reactivate. Accounts are created by seed only. |
 | Equipment photo | **Done** | Live in-app camera (viewfinder, shutter, retake) or upload from the device. |
 | Mobile | **Done** | Every route audited at 375px with no horizontal overflow; header collapses to a menu below 1024px. |
+| On-premise deployment | **Kit written** | `deploy/onprem/`: official Supabase stack at a pinned commit + Caddy + Cloudflare Tunnel + backups. Validated, not yet run on a Docker host. |
+| Fonts and icons | **Self-hosted** | No runtime request to Google; all fonts precached, so a LAN-only first visit still shows real icons. |
 
-**Verified on this tree:** `npm run check` (typecheck, lint with zero warnings, 17 tests including real
-.xlsx/.docx generation) and `npm run build:fugo` pass. All eight migrations were applied
-successfully against local Supabase (CLI 2.119) by the project owner.
+**Verified on this tree:** `npm run check` (typecheck, lint with zero warnings, 79 tests: 35 of
+them execute every migration against real PostgreSQL and test the rules as each role), 22
+end-to-end browser tests on a phone and a desktop viewport, and both institution builds pass.
+Migrations 0001–0008 were applied against local Supabase (CLI 2.119) by the project owner;
+**0009 and 0010 have been executed in the test harness but not yet against Supabase** — run
+`npx supabase db reset` before relying on them.
+
+> **Security — act before going live.** `seed-users` used to accept any caller holding the
+> public anon key, which ships in the website, so anyone could create an admin account. Fixed
+> (the function now requires the service key), but if an older copy was ever deployed:
+> redeploy both functions, and check `auth.users` for any email not in your seed list.
 
 ---
 
@@ -80,7 +91,9 @@ From the open questions in the specification:
 Principles that the code depends on:
 
 1. **The server computes status.** `recompute_equipment_state()` sets `status`,
-   `last_service_at` and `next_service_due` after every event. The client never does.
+   `last_service_at` and `next_service_due` after every event. The client never does, and
+   since 0009 the database refuses it: an app request that writes status, service dates,
+   `retired_at`, `asset_id` or `lab_id` is rejected (`equipment_guard_server_columns`).
 2. **History is append-only.** No update/delete on `events`; corrections are new rows.
    Service reports are locked after saving except for the replacement outcome (0008).
 3. **QR tokens are immutable** (`equipment_qr_token_immutable`).
@@ -98,7 +111,7 @@ Principles that the code depends on:
 | `src/offline/` | `db.ts` (Dexie schema), `outbox.ts`, `sync.ts` (push outbox, then pull), `network.ts` |
 | `src/lib/` | Supabase client, institution branding, status labels, date helpers (Africa/Lagos) |
 | `src/styles/tokens.css` | The only place colours, spacing and radii are defined |
-| `supabase/migrations/` | `0001` schema · `0002` RLS · `0003` triggers · `0004` cron · `0005` institution + labs · `0006` accounts · `0007` storage buckets + policies · `0008` replacement outcome rules |
+| `supabase/migrations/` | `0001` schema · `0002` RLS · `0003` triggers · `0004` cron · `0005` institution + labs · `0006` accounts · `0007` storage buckets + policies · `0008` replacement outcome rules · `0009` server-column guard, interval recompute, document withdraw, Realtime, shared-phone push |
 | `supabase/functions/` | `dispatch-outbox`, `seed-users`, `_shared/templates.ts` |
 | `deploy/env/` | `.env.fugo.example`, `.env.instb.example` (real files are gitignored) |
 
@@ -117,6 +130,7 @@ Principles that the code depends on:
 | `/staff` | technician, HOD | My equipment |
 | `/staff/equipment/new` | technician, HOD | Register equipment |
 | `/staff/equipment/:id/event/:type` | technician, HOD | `use`, `fault`, `maintenance`, `inspection`, `service_report` |
+| `/staff/equipment/:id/edit` | technician, HOD | Edit details (online only; per-field conflict check) |
 | `/staff/equipment/:id/replacement` | technician, HOD | Replacement outcome |
 | `/staff/labels` | technician, HOD | Print labels and lab entrance cards |
 | `/dashboard` | HOD (own labs), senior leader (all) | Dashboard |
@@ -155,6 +169,16 @@ Compressed on the device to ~0.5 MB, queued, shown immediately, uploaded by sync
 The live camera needs https or localhost; on plain http the button falls back to the
 phone's own camera app.
 
+**Documents.** Passport → *Documents* → *Add a document* → SOP / Manual / Certificate, title,
+file (PDF, Word, or a photo of the page; images are compressed). Queued offline like photos.
+SOPs appear on the public passport; manuals and certificates are staff only. A wrong document
+is **withdrawn**, never edited or deleted: it disappears for visitors, the record stays.
+
+**Editing details.** Passport → *Edit details*. Name, maker, model, serial, location,
+operating conditions and interval. Asset ID and lab are fixed (printed on the label). Changing
+the interval moves the next due date. Needs a connection. Two people editing at once are
+merged per field; only a field both changed differently is put back to the person.
+
 **Alerts.** Daily 07:00 Lagos: `check_due_dates()` writes tiered notifications and
 outbox rows. Every 5 minutes: cron calls `dispatch-outbox`, which sends email (Resend)
 and push, with retries. Dedupe key = equipment + tier + due date.
@@ -174,7 +198,12 @@ and push, with retries. Dedupe key = equipment + tier + due date.
 `offline`, and **a first-time visitor's scan cannot load**. The client asked that scans
 keep working without network; that requires the on-premise deployment in the spec (§6
 of the spec: local server + split-horizon DNS). The application code is already written
-for it; what is missing is the deployment kit (§12, item 4).
+for it, and the deployment kit now exists: **`deploy/onprem/README.md`**.
+
+Fonts and icons are self-hosted and precached (`src/styles/fonts.css`), so a device with no
+internet still renders the real typefaces and icons. The icon font is cut to the icons the
+app uses; after adding an icon, run `python3 scripts/icon-font/build.py` (the test suite
+fails until you do).
 
 ---
 
@@ -213,7 +242,9 @@ Do these in order. Tick each one.
    npx supabase functions deploy dispatch-outbox
    npx supabase functions deploy seed-users
    ```
-   Here `APP_BASE_URL` is the **website** address used in email links.
+   Here `APP_BASE_URL` is the **website** address used in email links. Put the VAPID
+   **public** key in the frontend env as `VITE_VAPID_PUBLIC_KEY` (step 8) — without it the
+   *Turn on notifications* option is hidden.
 8. **Frontend env** `deploy/env/.env.fugo`:
    ```
    VITE_SUPABASE_URL=https://<project-ref>.supabase.co
@@ -222,10 +253,12 @@ Do these in order. Tick each one.
    ```
    **Set `VITE_PUBLIC_BASE_URL` before printing a single label.** The Labels page shows a red
    warning while codes would point at localhost or a LAN address.
-9. **Build and host.** `npm run build:fugo` → upload `dist/` to any static host (Netlify,
-   Vercel, Cloudflare Pages) on the institution domain. **Add an SPA fallback** (every path →
-   `index.html`), otherwise opening `/e/<token>` directly returns the host's 404.
-   Netlify: `_redirects` with `/* /index.html 200`. Vercel: a rewrite of `/(.*)` to `/`.
+9. **Build and host.** `npm run build:fugo` → upload `dist/` to any static host on the
+   institution domain. The SPA fallback and cache headers are **already in the repo**:
+   `public/_redirects` and `public/_headers` (Netlify, Cloudflare Pages) and `vercel.json`.
+   Without the fallback, opening `/e/<token>` from a phone camera returns the host's 404 —
+   check it on the live site by opening a passport URL directly. For any other host, make
+   every path that is not a file serve `index.html`, and serve `sw.js` with `no-cache`.
 10. **Smoke test** on a phone over mobile data: sign in as each role, register a machine,
     take a photo, record a fault, scan the printed label signed out.
 11. **Print** lab entrance cards and equipment labels; mark them printed.
@@ -280,6 +313,7 @@ Frontend (`deploy/env/.env.<mode>`, read at build time, all public):
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | yes | Project URL and publishable/anon key |
 | `VITE_PUBLIC_BASE_URL` | yes before printing | Permanent address printed into QR codes |
 | `VITE_HEALTH_URL` | no | Only for an on-premise health endpoint |
+| `VITE_VAPID_PUBLIC_KEY` | no | Enables push opt-in. Public half only; the private key is a function secret |
 
 Server secrets (never in the frontend): `RESEND_API_KEY`, `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`, `APP_BASE_URL` (function secrets) and `app_base_url`,
@@ -294,6 +328,11 @@ Server secrets (never in the frontend): `RESEND_API_KEY`, `VAPID_PUBLIC_KEY`,
 | Add a person | Add a row to `0006_seed_users.sql` and run the file in the SQL editor (idempotent; existing people untouched), or POST a private JSON file to `seed-users`. They must change the password at first sign-in. |
 | Reset a password | Snippet at the foot of `0006_seed_users.sql`. |
 | Someone leaves | Admin → Accounts → **Deactivate**. Their history stays attributed to them. |
+| Wrong SOP uploaded | Passport → Documents → *Withdraw this document*, then add the right one. |
+| Someone wants fewer emails | They set it themselves: Alerts → *What reaches you* (every alert / critical only / off). In-app alerts always stay. |
+| Dean wants a weekly summary | Alerts → tick *Weekly summary by email*. Sent Monday 07:00, scoped to what they can see. |
+| A machine never alerts | It has no due date. Record its last service (or register it with one); see 4.3. |
+| Shared lab phone | Signing out turns push off for that device; the next person to sign in and turn it on takes the device over (`claim_push_subscription`). |
 | Move someone between labs | Snippet at the foot of `0006_seed_users.sql` (edits `lab_members`). |
 | Add a lab | Insert into `labs` (see `0005`); print its entrance card from Labels. |
 | Damaged label | Labels → untick "Only machines not printed yet" → select it → Print. Same code, same URL. |
@@ -326,27 +365,20 @@ for any lab or all labs. View only.
 
 ## 12. Remaining work, in priority order
 
-1. **Go live** on Supabase Cloud using §7, including the SPA fallback and
-   `VITE_PUBLIC_BASE_URL`. Without this nothing is usable outside the developer's laptop.
-2. **SOP and document upload** at registration and on the passport (the `documents` bucket,
-   table and public SOP access are ready; there is no upload UI yet).
-3. **Notifications:** push opt-in (`pushManager.subscribe` → `push_subscriptions`),
-   per-user settings, Supabase Realtime on `notifications` for a live bell, and the weekly
-   senior-leader digest.
-4. **On-premise kit** (`deploy/docker-compose.yml`, Caddyfile, cloudflared, backup script)
-   if first-time scans must work during an internet outage (§6).
-5. **Edit equipment details** after registration (name, location, interval). Today only the
-   photo can be changed after saving.
-6. **End-to-end tests** (Playwright) for the offline save-and-sync path and each role's
-   main flow.
-7. **Generated database types:** `npm run gen:types` replaces the hand-written
+1. **Go live** on Supabase Cloud using §7. First run `npx supabase db reset` locally so 0009
+   and 0010 are confirmed against real Supabase, and redeploy both edge functions (security
+   note in §1).
+2. **First on-premise install** on a test machine, following `deploy/onprem/README.md`,
+   including one restore drill. The kit is validated (Compose config, Caddy, ShellCheck,
+   `setup.sh` run end to end) but has not been started on a real Docker host.
+3. **Generated database types:** `npm run gen:types` replaces the hand-written
    `src/lib/database.types.ts`; run `npm run check` afterwards and fix any casts it exposes.
+4. **More end-to-end scenarios** as features change: the suite covers the visitor and
+   technician paths; HOD and dean dashboards are not yet scripted.
 
-Known limitations to communicate to users: registering needs a connection; the live camera
-needs https; iOS push requires installing the app to the home screen; email and push need
-internet.
-
----
+Known limitations to communicate to users: registering and editing details need a
+connection; withdrawing a document needs a connection; the live camera needs https; iOS push
+requires installing the app to the home screen; email and push need internet.
 
 ## 13. Open items needing a decision
 
@@ -360,10 +392,52 @@ internet.
 
 ## 14. Quality gate
 
-Before every push: `npm run check`. Before every release: `npm run build:fugo` and
-`npm run build:instb`, then the smoke test in §7 step 10.
+Before every push: `npm run check`. It includes `tests/db`, which runs every migration
+against real PostgreSQL (PGlite, in-process, no Docker) and tests the RLS and trigger rules
+as each role. **A new migration must keep it green**; add a test beside the rule you add.
+
+Before every release, also run the browser suite and both builds:
+
+```bash
+npx playwright install chromium     # once per machine
+npm run test:e2e                    # 22 scenarios, phone + desktop
+npm run build:fugo && npm run build:instb
+```
+
+`test:e2e` builds into `dist-e2e/` and answers Supabase from `e2e/supabaseMock.ts`, so it
+needs no backend. Where Playwright cannot download a browser, set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` to any Chromium. Then the smoke test in §7 step 10.
 
 Conventions enforced by lint: no hex colours in `.tsx` (use tokens), no emoji, no
 assignment to `.status`, accessibility rules (jsx-a11y). Layout rules: every screen uses
 one of three `Container` widths; touch targets are 48px; only spacing steps defined in
 `tailwind.config.ts` exist (0–6, 8, 10, 12, 16), so classes like `h-9` silently do nothing.
+
+---
+
+## 15. Changes since the first handover
+
+- **Security:** technicians could write `status`, service dates and the asset ID directly
+  through the API (verified by execution). 0009 refuses this; legitimate writes unaffected.
+- **Bug:** SOP links on the passport pointed at a route that did not exist. They now open
+  through a short-lived signed URL.
+- **New:** document upload and withdraw; edit details; live alert badge; push opt-in with
+  shared-phone handling; SPA fallback and cache headers for static hosts.
+- **Removed:** the never-used `equipment` outbox kind (its upsert could not have worked);
+  stale `deploy/env/fugo.env.example`, `instb.env.example` and `supabase/seed/seed.sql`
+  (duplicates of the real files).
+- **Tests:** 17 → 49, including the database suite in `tests/db`.
+
+Second round:
+
+- **Security:** `seed-users` and `dispatch-outbox` accepted any caller with the public anon
+  key; they now require the service key (`supabase/functions/_shared/caller.ts`).
+- **Bug:** a machine registered without service history had no due date and never alerted.
+  Registration now records the history it arrived with (as ordinary events).
+- **Bug:** fonts and icons came from Google at runtime and were never precached, so a LAN-only
+  first visit showed raw icon names. All fonts are now self-hosted (187 KiB, precached).
+- **Bug:** emails pasted staff-typed text into HTML unescaped, and every email told its
+  reader they were a lab technician. Escaped, and the footer now says why they got it.
+- **New:** per-person alert settings, opt-in critical alerts for leaders, weekly digest
+  (0010); on-premise kit (`deploy/onprem/`); end-to-end browser suite (`e2e/`).
+- **Tests:** 49 → 79 unit and database tests, plus 22 end-to-end.

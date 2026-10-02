@@ -22,3 +22,8 @@ deploy/env/.env.*
 !deploy/env/.env.*.example
 supabase/seed/users.*.json
 !supabase/seed/users.example.json
+
+# End-to-end build output and reports
+/dist-e2e/
+/test-results/
+/playwright-report/
